@@ -5,7 +5,8 @@
 
 import logging
 
-from odoo import _, api, exceptions, fields, models, osv
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError, ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ class SaleOrder(models.Model):
             else:
                 try:
                     order.action_cancel()
-                except (osv.osv.except_osv, osv.orm.except_orm, exceptions.Warning):
+                except (UserError, ValidationError):
                     # the 'cancellation_resolved' flag will stay to False
                     message = (
                         _("The sales order could not be automatically canceled.")
