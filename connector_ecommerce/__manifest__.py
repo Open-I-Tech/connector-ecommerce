@@ -15,6 +15,7 @@
         "sale_exception",
         "delivery",
         "connector_base_product",
+        "stock",
     ],
     "data": [
         "security/security.xml",
