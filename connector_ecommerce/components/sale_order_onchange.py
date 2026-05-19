@@ -9,6 +9,14 @@ class OnChangeManager(Component):
     _name = "ecommerce.onchange.manager"
     _inherit = "base.connector"
 
+    def _onchange_fields_spec(self, model, values):
+        return {fieldname: {} for fieldname in values if fieldname in model._fields}
+
+    def _normalize_onchange_value(self, column, value):
+        if column.type == "many2one" and isinstance(value, list | tuple):
+            return value[0] if value else False
+        return value
+
     def get_new_values(self, record, on_change_result, model=None):
         vals = on_change_result.get("value", {})
         new_values = {}
@@ -16,14 +24,12 @@ class OnChangeManager(Component):
             if fieldname not in record:
                 if model:
                     column = self.env[model]._fields[fieldname]
-                    if column.type == "many2one":
-                        value = value[0]  # many2one are tuple (id, name)
+                    value = self._normalize_onchange_value(column, value)
                 new_values[fieldname] = value
         return new_values
 
     def play_onchanges(self, model, values, onchange_fields):
         model = self.env[model]
-        onchange_specs = model._onchange_spec()
 
         # we need all fields in the dict even the empty ones
         # otherwise 'onchange()' will not apply changes to them
@@ -38,7 +44,11 @@ class OnChangeManager(Component):
 
         new_values = {}
         for field in onchange_fields:
-            onchange_values = new_record.onchange(all_values, field, onchange_specs)
+            onchange_values = new_record.onchange(
+                all_values,
+                [field],
+                self._onchange_fields_spec(model, all_values),
+            )
             new_values.update(
                 self.get_new_values(values, onchange_values, model=model._name)
             )
