@@ -15,7 +15,12 @@ class TestInvoiceEvent(common.TransactionCase):
         self.invoice_model = self.env["account.move"]
         partner_model = self.env["res.partner"]
         partner = partner_model.create({"name": "Hodor"})
-        product = self.env.ref("product.product_product_6")
+        product = self.env["product.product"].create(
+            {
+                "name": "Test Invoice Product",
+                "list_price": 200,
+            }
+        )
         invoice_vals = {
             "partner_id": partner.id,
             "company_id": self.env.ref("base.main_company").id,

@@ -69,8 +69,24 @@ class TestOnchange(ComponentRegistry):
                 "taxes_id": [(6, 0, [tax.id])],
             }
         )
-        payment_mode_xmlid = "account_payment_mode.payment_mode_inbound_ct2"
-        payment_mode = self.env.ref(payment_mode_xmlid)
+        payment_mode = self.env["account.payment.mode"].create(
+            {
+                "name": "Test Inbound Payment Mode",
+                "bank_account_link": "fixed",
+                "fixed_journal_id": self.env["account.journal"]
+                .search(
+                    [
+                        ("type", "in", ("bank", "cash")),
+                        ("company_id", "=", self.env.company.id),
+                    ],
+                    limit=1,
+                )
+                .id,
+                "payment_method_id": self.env.ref(
+                    "account.account_payment_method_manual_in"
+                ).id,
+            }
+        )
 
         order_vals = {
             "name": "mag_10000001",

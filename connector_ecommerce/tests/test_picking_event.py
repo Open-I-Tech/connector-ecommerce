@@ -16,7 +16,7 @@ class TestPickingEvent(common.TransactionCase):
             "picking_id": picking_id.id,
             "product_id": product.id,
             "product_uom_qty": product_qty,
-            "qty_done": product_qty,
+            "quantity": product_qty,
         }
         vals.update(**values)
         pack_operation = move_line_env.new(vals)
@@ -33,8 +33,15 @@ class TestPickingEvent(common.TransactionCase):
 
         partner_model = self.env["res.partner"]
         partner = partner_model.create({"name": "Benjy"})
-        self.product_6 = self.env.ref("product.product_product_6")
-        self.product_7 = self.env.ref("product.product_product_7")
+        self.product_6 = self._create_stock_product("Test Large Cabinet")
+        self.product_7 = self._create_stock_product("Test Storage Box")
+        stock_location = self.env.ref("stock.stock_location_stock")
+        self.env["stock.quant"]._update_available_quantity(
+            self.product_6, stock_location, 100
+        )
+        self.env["stock.quant"]._update_available_quantity(
+            self.product_7, stock_location, 100
+        )
         self.sale = self.sale_model.create({"partner_id": partner.id})
         self.sale_line_model.create(
             {
@@ -58,8 +65,17 @@ class TestPickingEvent(common.TransactionCase):
         )
         self.sale.action_confirm()
         self.picking = self.sale.picking_ids
-        self.location_id = self.picking.move_line_ids[0].location_id.id
-        self.location_dest_id = self.picking.move_line_ids[0].location_dest_id.id
+
+    def _create_stock_product(self, name):
+        product_vals = {
+            "name": name,
+            "sale_ok": True,
+        }
+        if "is_storable" in self.env["product.product"]._fields:
+            product_vals["is_storable"] = True
+        else:
+            product_vals["type"] = "product"
+        return self.env["product.product"].create(product_vals)
 
     def test_event_on_picking_out_done(self):
         """Test if the ``on_picking_out_done`` event is fired
@@ -69,7 +85,8 @@ class TestPickingEvent(common.TransactionCase):
             self.picking.action_confirm()
             self.picking.action_assign()
             for move in self.picking.move_ids:
-                move.move_line_ids.qty_done = move.product_qty
+                move.move_line_ids.quantity = move.product_qty
+                move.move_line_ids.picked = True
             self.picking._action_done()
             self.assertEqual(self.picking.state, "done")
             mock_event("on_picking_out_done").notify.assert_called_with(
@@ -83,7 +100,8 @@ class TestPickingEvent(common.TransactionCase):
         with mock.patch(mock_method) as mock_event:
             self.picking.action_confirm()
             self.picking.action_assign()
-            self.picking.move_line_ids.qty_done = 1.0
+            self.picking.move_line_ids.quantity = 1.0
+            self.picking.move_line_ids.picked = True
             self.picking._action_done()
             self.assertEqual(self.picking.state, "done")
             mock_event("on_picking_out_done").notify.assert_called_with(
