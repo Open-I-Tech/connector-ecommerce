@@ -51,7 +51,7 @@ class SpecialOrderLineBuilder(Component):
         return {
             "product_id": product.id,
             "name": product.name,
-            "product_uom": product.uom_id.id,
+            "product_uom_id": product.uom_id.id,
             "product_uom_qty": self.quantity,
             "price_unit": self.price_unit * self.sign,
             "sequence": self.sequence,

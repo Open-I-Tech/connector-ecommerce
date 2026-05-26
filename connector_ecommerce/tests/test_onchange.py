@@ -130,9 +130,9 @@ class TestOnchange(ComponentRegistry):
         self.assertEqual(len(order["order_line"]), 1)
         line = order["order_line"][0][2]
         self.assertEqual(line["name"], "My Real Name")
-        self.assertEqual(line["product_uom"], product.uom_id.id)
+        self.assertEqual(line["product_uom_id"], product.uom_id.id)
         self.assertEqual(line["tax_id"], [(5,), (4, tax.id)])
         line = extra_lines[0][2]
         self.assertEqual(line["name"], "Line 2")
-        self.assertEqual(line["product_uom"], product.uom_id.id)
+        self.assertEqual(line["product_uom_id"], product.uom_id.id)
         self.assertEqual(line["tax_id"], [(5,), (4, tax.id)])
