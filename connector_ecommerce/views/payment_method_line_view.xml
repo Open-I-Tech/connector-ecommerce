@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="account_journal_form_inherit" model="ir.ui.view">
+        <field name="name">account.journal.connector.ecommerce.form</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form" />
+        <field name="arch" type="xml">
+            <xpath
+                expr="//field[@name='inbound_payment_method_line_ids']/list/field[@name='name']"
+                position="after"
+            >
+                <field name="import_rule" />
+                <field name="days_before_cancel" optional="hide" />
+                <field name="workflow_process_id" optional="show" />
+            </xpath>
+        </field>
+    </record>
+</odoo>

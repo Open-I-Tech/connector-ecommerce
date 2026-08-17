@@ -2,6 +2,8 @@
 # © 2016 Camptocamp SA
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html)
 
+from odoo import Command
+
 from odoo.addons.component.core import Component
 
 
@@ -95,8 +97,7 @@ class SaleOrderOnChange(Component):
 
         for line_list in line_lists:
             for idx, command_line in enumerate(line_list):
-                # line_list format:[(0, 0, {...}), (0, 0, {...})]
-                if command_line[0] in (0, 1):  # create or update values
+                if command_line[0] in (Command.CREATE, Command.UPDATE):
                     # we work on a temporary record
                     order_model = self.env["sale.order"]
 
@@ -115,7 +116,10 @@ class SaleOrderOnChange(Component):
                     new_line_data = self.play_onchanges(
                         "sale.order.line", old_line_data, self.line_onchange_fields
                     )
-                    new_line = (command_line[0], command_line[1], new_line_data)
+                    if command_line[0] == Command.CREATE:
+                        new_line = Command.create(new_line_data)
+                    else:
+                        new_line = Command.update(command_line[1], new_line_data)
                     processed_order_lines.append(new_line)
                     # in place modification of the sales order line in the list
                     line_list[idx] = new_line

@@ -5,6 +5,8 @@
 
 import logging
 
+from markupsafe import Markup, escape
+
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -115,12 +117,10 @@ class SaleOrder(models.Model):
 
         If it can't cancel it, does nothing.
         """
-        resolution_msg = _(
-            "<p>Resolution:<ol>"
-            "<li>Cancel the linked invoices, delivery "
-            "orders, automatic payments.</li>"
-            "<li>Cancel the sales order manually.</li>"
-            "</ol></p>"
+        resolution_msg = Markup("<p>%s</p><ol><li>%s</li><li>%s</li></ol>") % (
+            escape(_("Resolution:")),
+            escape(_("Cancel the linked invoices, deliveries and payments.")),
+            escape(_("Cancel the sales order manually.")),
         )
         for order in self:
             state = order.state
@@ -136,9 +136,11 @@ class SaleOrder(models.Model):
                     order.action_cancel()
                 except (UserError, ValidationError):
                     # the 'cancellation_resolved' flag will stay to False
-                    message = (
-                        _("The sales order could not be automatically canceled.")
-                        + resolution_msg
+                    message = Markup("<p>%s</p>%s") % (
+                        escape(
+                            _("The sales order could not be automatically canceled.")
+                        ),
+                        resolution_msg,
                     )
                 else:
                     message = _("The sales order has been automatically canceled.")
@@ -148,12 +150,9 @@ class SaleOrder(models.Model):
         message = _("The sales order has been canceled on the backend.")
         self.message_post(body=message)
         for order in self:
-            message = (
-                _(
-                    "Warning: the origin sales order %s has been canceled "
-                    "on the backend."
-                )
-                % order.name
+            message = _(
+                "Warning: the origin sales order %s has been canceled on the backend.",
+                order.name,
             )
             for picking in order.picking_ids:
                 picking.message_post(body=message)
@@ -190,12 +189,15 @@ class SaleOrder(models.Model):
         The user can choose to keep the sales order active for some reason,
         it only requires to push a button to keep it alive.
         """
-        message = (
-            _(
-                "Despite the cancellation of the sales order on the "
-                "backend, it should stay open.<br/><br/>Reason: %s"
-            )
-            % reason
+        message = Markup("<p>%s</p><p><strong>%s</strong> %s</p>") % (
+            escape(
+                _(
+                    "Despite the cancellation of the sales order on the backend, "
+                    "it should stay open."
+                )
+            ),
+            escape(_("Reason:")),
+            escape(reason),
         )
         self.message_post(body=message)
         self.write({"cancellation_resolved": True})

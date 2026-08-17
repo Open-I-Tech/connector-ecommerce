@@ -11,10 +11,9 @@
     "license": "AGPL-3",
     "depends": [
         "connector",
-        "sale_automatic_workflow_payment_mode",
+        "sale_automatic_workflow",
         "sale_exception",
-        "delivery",
-        "connector_base_product",
+        "stock_delivery",
         "stock",
     ],
     "data": [
@@ -25,7 +24,7 @@
         "views/sale_view.xml",
         "views/invoice_view.xml",
         "views/stock_view.xml",
-        "views/payment_mode_view.xml",
+        "views/payment_method_line_view.xml",
     ],
     "installable": True,
 }

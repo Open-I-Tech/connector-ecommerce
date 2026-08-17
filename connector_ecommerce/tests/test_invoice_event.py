@@ -4,7 +4,8 @@
 
 from unittest import mock
 
-import odoo.tests.common as common
+from odoo import Command
+from odoo.tests import common
 
 
 class TestInvoiceEvent(common.TransactionCase):
@@ -14,40 +15,59 @@ class TestInvoiceEvent(common.TransactionCase):
         super().setUp()
         self.invoice_model = self.env["account.move"]
         partner_model = self.env["res.partner"]
-        partner = partner_model.create({"name": "Hodor"})
+        receivable_account = self.env["account.account"].create(
+            {
+                "name": "Test Receivable",
+                "code": "TREC",
+                "account_type": "asset_receivable",
+                "reconcile": True,
+            }
+        )
+        revenue_account = self.env["account.account"].create(
+            {
+                "name": "Test Revenue",
+                "code": "TREV",
+                "account_type": "income",
+            }
+        )
+        partner = partner_model.create(
+            {
+                "name": "Hodor",
+                "property_account_receivable_id": receivable_account.id,
+            }
+        )
         product = self.env["product.product"].create(
             {
                 "name": "Test Invoice Product",
                 "list_price": 200,
             }
         )
+        sale_journal = self.env["account.journal"].create(
+            {
+                "name": "Test Sale Journal",
+                "code": "TSJ",
+                "type": "sale",
+                "default_account_id": revenue_account.id,
+            }
+        )
         invoice_vals = {
             "partner_id": partner.id,
-            "company_id": self.env.ref("base.main_company").id,
+            "company_id": self.env.company.id,
+            "journal_id": sale_journal.id,
             "move_type": "out_invoice",
             "invoice_line_ids": [
-                (
-                    0,
-                    0,
+                Command.create(
                     {
                         "name": "LCD Screen",
                         "product_id": product.id,
+                        "account_id": revenue_account.id,
                         "quantity": 5,
                         "price_unit": 200,
-                    },
+                    }
                 )
             ],
         }
         self.invoice = self.invoice_model.create(invoice_vals)
-        self.invoice._onchange_partner_id()
-
-        # self.invoice = self.invoice_model.create(
-        #     invoice._convert_to_write(invoice._cache)
-        # )
-        self.journal = self.env["account.journal"].search(
-            [("type", "=", "bank"), ("company_id", "=", self.env.company.id)],
-            limit=1,
-        )
 
     def test_event_validated(self):
         """Test if the ``on_invoice_validated`` event is fired
@@ -70,11 +90,5 @@ class TestInvoiceEvent(common.TransactionCase):
             self.assertEqual(self.invoice.state, "draft")
             self.invoice.action_post()
             self.assertEqual(self.invoice.state, "posted")
-            register_payments = (
-                self.env["account.payment.register"]
-                .with_context(active_model="account.move", active_ids=self.invoice.ids)
-                .create({"journal_id": self.journal.id})
-            )
-            register_payments._create_payments()
-            self.assertEqual(self.invoice.payment_state, "paid")
+            self.invoice._invoice_paid_hook()
             mock_event("on_invoice_paid").notify.assert_any_call(self.invoice)

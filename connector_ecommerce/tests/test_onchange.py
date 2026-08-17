@@ -4,21 +4,19 @@
 
 from contextlib import contextmanager
 
-import odoo.tests.common as common
-
-from odoo.addons.component.core import ComponentRegistry
+from odoo import Command
+from odoo.addons.component.tests.common import TransactionComponentRegistryCase
 
 from ..components.sale_order_onchange import OnChangeManager, SaleOrderOnChange
 
-DB = common.DB
-ADMIN_USER_ID = common.ADMIN_USER_ID
 
-
-class TestOnchange(ComponentRegistry):
+class TestOnchange(TransactionComponentRegistryCase):
     """Test if the onchanges are applied correctly on a sales order"""
 
     def setUp(self):
         super().setUp()
+        self._setup_registry(self)
+        self.addCleanup(self._teardown_registry, self)
         self.collection = self.env["collection.base"]
         OnChangeManager._build_component(self.comp_registry)
         SaleOrderOnChange._build_component(self.comp_registry)
@@ -60,31 +58,21 @@ class TestOnchange(ComponentRegistry):
                 "parent_id": partner.id,
             }
         )
-        tax = tax_model.create({"name": "My Tax", "amount": 1.0})
+        tax_group = self.env["account.tax.group"].create({"name": "My Tax Group"})
+        tax = tax_model.create(
+            {
+                "name": "My Tax",
+                "amount": 1.0,
+                "tax_group_id": tax_group.id,
+                "country_id": self.env.ref("base.us").id,
+            }
+        )
         product = product_model.create(
             {
                 "default_code": "MyCode",
                 "name": "My Product",
                 "weight": 15,
-                "taxes_id": [(6, 0, [tax.id])],
-            }
-        )
-        payment_mode = self.env["account.payment.mode"].create(
-            {
-                "name": "Test Inbound Payment Mode",
-                "bank_account_link": "fixed",
-                "fixed_journal_id": self.env["account.journal"]
-                .search(
-                    [
-                        ("type", "in", ("bank", "cash")),
-                        ("company_id", "=", self.env.company.id),
-                    ],
-                    limit=1,
-                )
-                .id,
-                "payment_method_id": self.env.ref(
-                    "account.account_payment_method_manual_in"
-                ).id,
+                "taxes_id": [Command.set(tax.ids)],
             }
         )
 
@@ -92,33 +80,28 @@ class TestOnchange(ComponentRegistry):
             "name": "mag_10000001",
             "partner_id": partner.id,
             "company_id": self.env.company.id,
-            "payment_mode_id": payment_mode.id,
             "order_line": [
-                (
-                    0,
-                    0,
+                Command.create(
                     {
                         "product_id": product.id,
                         "price_unit": 20,
                         "name": "My Real Name",
                         "product_uom_qty": 1,
                         "sequence": 1,
-                    },
+                    }
                 ),
             ],
         }
 
         extra_lines = [
-            (
-                0,
-                0,
+            Command.create(
                 {
                     "product_id": product.id,
                     "price_unit": 10,
                     "name": "Line 2",
                     "product_uom_qty": 2,
                     "sequence": 2,
-                },
+                }
             ),
         ]
 
@@ -131,8 +114,10 @@ class TestOnchange(ComponentRegistry):
         line = order["order_line"][0][2]
         self.assertEqual(line["name"], "My Real Name")
         self.assertEqual(line["product_uom_id"], product.uom_id.id)
-        self.assertEqual(line["tax_id"], [(5,), (4, tax.id)])
+        self.assertEqual(len(line["tax_ids"]), 1)
+        self.assertEqual(line["tax_ids"][0][:2], (Command.LINK, tax.id))
         line = extra_lines[0][2]
         self.assertEqual(line["name"], "Line 2")
         self.assertEqual(line["product_uom_id"], product.uom_id.id)
-        self.assertEqual(line["tax_id"], [(5,), (4, tax.id)])
+        self.assertEqual(len(line["tax_ids"]), 1)
+        self.assertEqual(line["tax_ids"][0][:2], (Command.LINK, tax.id))

@@ -4,26 +4,11 @@
 
 from unittest import mock
 
-import odoo.tests.common as common
+from odoo.tests import common
 
 
 class TestPickingEvent(common.TransactionCase):
     """Test if the events on the pickings are fired correctly"""
-
-    def _create_pack_operation(self, product, product_qty, picking_id, **values):
-        move_line_env = self.env["stock.move.line"]
-        vals = {
-            "picking_id": picking_id.id,
-            "product_id": product.id,
-            "product_uom_qty": product_qty,
-            "quantity": product_qty,
-        }
-        vals.update(**values)
-        pack_operation = move_line_env.new(vals)
-        pack_operation.onchange_product_id()
-        return move_line_env.create(
-            pack_operation._convert_to_write(pack_operation._cache)
-        )
 
     def setUp(self):
         super().setUp()
